@@ -9,10 +9,15 @@ logger = logging.getLogger(__name__)
 class UserManager:
     """Manages authorized users for the bot"""
     
-    def __init__(self, users_file: Path):
+    def __init__(self, users_file: Path, admin_user_id: Optional[str] = None):
         self.users_file = users_file
+        self.admin_user_id = int(admin_user_id) if admin_user_id else None
         self._ensure_file_exists()
         self.users = self._load_users()
+        
+        # Always include admin in authorized users
+        if self.admin_user_id and self.admin_user_id not in self.users:
+            self.add_user(self.admin_user_id)
         
     def _ensure_file_exists(self):
         """Ensure the users file exists"""
@@ -44,6 +49,10 @@ class UserManager:
     def is_authorized(self, user_id: int) -> bool:
         """Check if a user is authorized"""
         return user_id in self.users
+    
+    def is_user_allowed(self, user_id: int) -> bool:
+        """Alias for is_authorized for backward compatibility"""
+        return self.is_authorized(user_id)
         
     def add_user(self, user_id: int) -> bool:
         """Add a user to the authorized list"""

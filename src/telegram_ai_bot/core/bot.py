@@ -21,7 +21,7 @@ class TelegramAIBot:
         self.config.validate()
         Config.ensure_directories()
         
-        self.user_manager = UserManager(self.config.AUTHORIZED_USERS_FILE)
+        self.user_manager = UserManager(self.config.AUTHORIZED_USERS_FILE, self.config.ADMIN_USER_ID)
         self.application: Optional[Application] = None
         
     async def initialize(self):
