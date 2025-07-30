@@ -51,7 +51,7 @@ async def main():
         logger.info("✅ All environment variables validated")
         
         # Import after validation to avoid config loading issues
-        from telegram_ai_bot.core.bot import TelegramAIBot
+        from telegram_ai_bot.core.railway_bot import RailwayBot
         
         # Create directories
         os.makedirs('data', exist_ok=True)
@@ -59,7 +59,7 @@ async def main():
         
         # Initialize bot
         logger.info("🤖 Initializing bot...")
-        bot = TelegramAIBot()
+        bot = RailwayBot()
         
         # Check if running on Railway (has PORT environment variable)
         port = os.getenv('PORT')
@@ -79,9 +79,10 @@ async def main():
             logger.info(f"🌐 Starting with webhook mode on Railway")
             logger.info(f"📡 Webhook URL: {webhook_url}")
             logger.info(f"🔌 Port: {port}")
+            logger.info(f"🏥 Health check will be available at /health")
             
-            # Start with webhook
-            await bot.run_webhook(
+            # Start with webhook and health check
+            await bot.run_webhook_with_health(
                 webhook_url=webhook_url,
                 port=int(port),
                 host='0.0.0.0'
