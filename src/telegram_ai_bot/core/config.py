@@ -79,6 +79,11 @@ class Config:
         
         return True
     
+    def get_ai_service(self):
+        """Get an AI service instance"""
+        from ..utils.ai_service import AIService
+        return AIService(self.OPENAI_API_KEY, self.GPT_MODEL)
+    
     @classmethod
     def ensure_directories(cls):
         """Ensure all required directories exist"""

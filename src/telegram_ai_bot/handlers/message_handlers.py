@@ -45,7 +45,7 @@ def get_voice_handler(user_manager, config):
                 await voice_file.download_to_drive(audio_path)
                 
             # Initialize AI service
-            ai_service = AIService(config.OPENAI_API_KEY, config.GPT_MODEL)
+            ai_service = config.get_ai_service()
             
             # Transcribe audio
             await processing_msg.edit_text("📝 Transcribing audio...")
@@ -153,11 +153,62 @@ def get_text_handler(user_manager, config):
     """Create text message handler for non-voice messages"""
     
     async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
-        # For now, just inform users to send voice messages
-        await update.message.reply_text(
-            "🎤 Please send voice messages for processing.\n"
-            "I can transcribe and analyze voice notes in Arabic, English, and French."
-        )
+        user_id = update.effective_user.id
+        
+        # Check user access
+        if not user_manager.is_user_allowed(user_id):
+            await update.message.reply_text(
+                "❌ You don't have access to this bot.\n"
+                "Please contact the administrator for access."
+            )
+            return
+            
+        try:
+            # Get the user's message
+            user_message = update.message.text
+            user_name = update.effective_user.first_name or "User"
+            
+            # Send typing indicator
+            await context.bot.send_chat_action(
+                chat_id=update.effective_chat.id,
+                action="typing"
+            )
+            
+            # Get AI service from config
+            ai_service = config.get_ai_service()
+            
+            # For text messages, we'll use the AI to respond directly
+            response = await ai_service.get_chat_response(user_message, user_name)
+            
+            # Send the response
+            await update.message.reply_text(response)
+            
+        except AttributeError:
+            # If get_chat_response doesn't exist, fall back to analyze_text
+            try:
+                analysis = await ai_service.analyze_text(user_message, user_name)
+                
+                # Format the analysis
+                response = f"📝 **Analysis:**\n\n"
+                response += f"**Summary:** {analysis.get('summary', 'No summary available')}\n\n"
+                
+                if analysis.get('action_items'):
+                    response += "**Action Items:**\n"
+                    for item in analysis['action_items']:
+                        response += f"• {item}\n"
+                
+                await update.message.reply_text(response, parse_mode='Markdown')
+                
+            except Exception as e:
+                logger.error(f"Error processing text message: {e}")
+                await update.message.reply_text(
+                    "I'm sorry, I couldn't process your message. Please try again."
+                )
+        except Exception as e:
+            logger.error(f"Error processing text message: {e}")
+            await update.message.reply_text(
+                "❌ Sorry, I couldn't process your message. Please try again."
+            )
         
     return MessageHandler(
         filters.TEXT & ~filters.COMMAND, 

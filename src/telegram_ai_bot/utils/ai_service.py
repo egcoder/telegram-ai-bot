@@ -48,6 +48,35 @@ class AIService:
         response = self.client.audio.transcriptions.create(**params)
         return response
         
+    async def get_chat_response(self, message: str, user_name: str) -> str:
+        """Get a chat response from the AI"""
+        try:
+            # Run in executor to avoid blocking
+            loop = asyncio.get_event_loop()
+            response = await loop.run_in_executor(
+                None,
+                self._get_chat_response_sync,
+                message,
+                user_name
+            )
+            return response
+        except Exception as e:
+            logger.error(f"Chat response error: {e}")
+            raise
+    
+    def _get_chat_response_sync(self, message: str, user_name: str) -> str:
+        """Synchronous chat response method"""
+        response = self.client.chat.completions.create(
+            model=self.model,
+            messages=[
+                {"role": "system", "content": f"You are a helpful AI assistant chatting with {user_name}. Be friendly, concise, and helpful."},
+                {"role": "user", "content": message}
+            ],
+            temperature=0.7,
+            max_tokens=500
+        )
+        return response.choices[0].message.content
+    
     async def analyze_text(self, text: str, user_name: str) -> Dict:
         """Analyze text and extract action items"""
         prompt = f"""Analyze this voice note from {user_name} and extract:
