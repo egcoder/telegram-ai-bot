@@ -36,17 +36,37 @@ class AIService:
             
     def _transcribe_sync(self, audio_file, language: Optional[str]) -> str:
         """Synchronous transcription method"""
-        params = {
-            "model": "whisper-1",
-            "file": audio_file,
-            "response_format": "text"
-        }
-        
-        if language:
-            params["language"] = language
+        try:
+            # Only include parameters that are definitely supported
+            kwargs = {
+                "model": "whisper-1",
+                "file": audio_file
+            }
             
-        response = self.client.audio.transcriptions.create(**params)
-        return response
+            # Add optional parameters only if specified
+            if language:
+                kwargs["language"] = language
+                
+            logger.info(f"Calling Whisper API with params: {list(kwargs.keys())}")
+            
+            # Don't specify response_format - let it default
+            response = self.client.audio.transcriptions.create(**kwargs)
+            
+            logger.info(f"Whisper response type: {type(response)}")
+            
+            # The response should be text by default, but handle different response types
+            if hasattr(response, 'text'):
+                logger.info("Using response.text attribute")
+                return response.text
+            else:
+                # If it's already a string, return it
+                logger.info("Converting response to string")
+                return str(response)
+                
+        except Exception as e:
+            logger.error(f"Whisper API error: {e}")
+            logger.error(f"Request params were: {kwargs}")
+            raise
         
     async def get_chat_response(self, message: str, user_name: str) -> str:
         """Get a chat response from the AI"""
