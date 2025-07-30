@@ -28,17 +28,24 @@ class RailwayBot(TelegramAIBot):
         try:
             # Get the update data as JSON
             data = await request.json()
+            logger.info(f"Received webhook data: {data}")
             
             # Process the update through the bot
             from telegram import Update
             update = Update.de_json(data, self.application.bot)
             
-            # Add to the update queue for processing
-            await self.application.update_queue.put(update)
+            if update:
+                logger.info(f"Processing update: {update.update_id}")
+                # Add to the update queue for processing
+                await self.application.update_queue.put(update)
+            else:
+                logger.warning("Failed to create Update object from data")
             
             return web.Response(text="OK")
         except Exception as e:
             logger.error(f"Error processing webhook: {e}")
+            import traceback
+            logger.error(f"Webhook traceback: {traceback.format_exc()}")
             return web.Response(status=500, text=str(e))
     
     async def run_webhook_with_health(self, webhook_url: str, port: int = 8000, host: str = '0.0.0.0'):

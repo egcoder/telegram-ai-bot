@@ -83,13 +83,29 @@ def get_voice_handler(user_manager, config):
             )
             
             # Clean up temporary file
-            os.unlink(audio_path)
+            try:
+                os.unlink(audio_path)
+                logger.info(f"Cleaned up temporary file: {audio_path}")
+            except Exception as cleanup_error:
+                logger.warning(f"Failed to cleanup temp file: {cleanup_error}")
             
         except Exception as e:
             logger.error(f"Error processing voice message: {e}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            
+            # Clean up temp file even on error
+            try:
+                if 'audio_path' in locals():
+                    os.unlink(audio_path)
+                    logger.info(f"Cleaned up temporary file after error: {audio_path}")
+            except Exception as cleanup_error:
+                logger.warning(f"Failed to cleanup temp file after error: {cleanup_error}")
+            
             await processing_msg.edit_text(
-                "❌ Sorry, I couldn't process your voice message. "
-                "Please try again or contact support if the issue persists."
+                f"❌ Sorry, I couldn't process your voice message. "
+                f"Error: {str(e)[:100]}... "
+                f"Please try again or contact support if the issue persists."
             )
             
     return MessageHandler(filters.VOICE, handle_voice)
