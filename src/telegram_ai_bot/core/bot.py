@@ -17,10 +17,10 @@ class TelegramAIBot:
     """Main bot class that orchestrates all functionality"""
     
     def __init__(self):
-        Config.validate()
+        self.config = Config()
+        self.config.validate()
         Config.ensure_directories()
         
-        self.config = Config()
         self.user_manager = UserManager(self.config.AUTHORIZED_USERS_FILE)
         self.application: Optional[Application] = None
         

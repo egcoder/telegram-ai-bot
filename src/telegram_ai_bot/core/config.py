@@ -10,18 +10,40 @@ load_dotenv()
 class Config:
     """Central configuration class"""
     
-    # Bot Configuration
-    TELEGRAM_BOT_TOKEN: str = os.getenv('TELEGRAM_BOT_TOKEN', '')
-    ADMIN_USER_ID: str = os.getenv('ADMIN_USER_ID', '')
+    @classmethod 
+    def _get_env(cls, key: str, default: str = '') -> str:
+        """Get environment variable with Railway compatibility"""
+        # Reload dotenv for Railway compatibility
+        load_dotenv(override=True)
+        return os.getenv(key, default)
     
-    # API Keys
-    OPENAI_API_KEY: str = os.getenv('OPENAI_API_KEY', '')
-    ANTHROPIC_API_KEY: Optional[str] = os.getenv('ANTHROPIC_API_KEY')
+    @property
+    def TELEGRAM_BOT_TOKEN(self) -> str:
+        return self._get_env('TELEGRAM_BOT_TOKEN')
     
-    # AI Model Settings
-    WHISPER_MODEL: str = os.getenv('WHISPER_MODEL', 'whisper-1')
-    GPT_MODEL: str = os.getenv('GPT_MODEL', 'gpt-4')
-    CLAUDE_MODEL: str = os.getenv('CLAUDE_MODEL', 'claude-3-opus-20240229')
+    @property  
+    def ADMIN_USER_ID(self) -> str:
+        return self._get_env('ADMIN_USER_ID')
+    
+    @property
+    def OPENAI_API_KEY(self) -> str:
+        return self._get_env('OPENAI_API_KEY')
+    
+    @property
+    def ANTHROPIC_API_KEY(self) -> Optional[str]:
+        return self._get_env('ANTHROPIC_API_KEY') or None
+    
+    @property
+    def WHISPER_MODEL(self) -> str:
+        return self._get_env('WHISPER_MODEL', 'whisper-1')
+    
+    @property
+    def GPT_MODEL(self) -> str:
+        return self._get_env('GPT_MODEL', 'gpt-4')
+    
+    @property
+    def CLAUDE_MODEL(self) -> str:
+        return self._get_env('CLAUDE_MODEL', 'claude-3-opus-20240229')
     
     # File Paths
     BASE_DIR: Path = Path(__file__).parent.parent.parent.parent
@@ -43,13 +65,12 @@ class Config:
     LOG_LEVEL: str = os.getenv('LOG_LEVEL', 'INFO')
     LOG_FORMAT: str = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     
-    @classmethod
-    def validate(cls) -> bool:
+    def validate(self) -> bool:
         """Validate required configuration"""
         required = [
-            cls.TELEGRAM_BOT_TOKEN,
-            cls.OPENAI_API_KEY,
-            cls.ADMIN_USER_ID
+            self.TELEGRAM_BOT_TOKEN,
+            self.OPENAI_API_KEY,
+            self.ADMIN_USER_ID
         ]
         
         missing = [var for var in required if not var]
