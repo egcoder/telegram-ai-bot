@@ -35,21 +35,34 @@ def get_voice_handler(user_manager, config):
         try:
             # Download voice file
             voice_file = await update.message.voice.get_file()
+            logger.info(f"Voice file info - File ID: {voice_file.file_id}, Size: {voice_file.file_size}")
             
-            # Create temporary file for audio
+            # Create temporary file for audio - try .wav extension for better compatibility
             with tempfile.NamedTemporaryFile(
-                suffix='.ogg', 
+                suffix='.wav', 
                 delete=False
             ) as tmp_file:
                 audio_path = Path(tmp_file.name)
                 await voice_file.download_to_drive(audio_path)
+                
+            # Verify file was downloaded
+            if not audio_path.exists():
+                raise Exception(f"Failed to download voice file to {audio_path}")
+                
+            file_size = audio_path.stat().st_size
+            logger.info(f"Downloaded voice file: {audio_path}, Size: {file_size} bytes")
+            
+            if file_size == 0:
+                raise Exception("Downloaded voice file is empty")
                 
             # Initialize AI service
             ai_service = config.get_ai_service()
             
             # Transcribe audio
             await processing_msg.edit_text("📝 Transcribing audio...")
+            logger.info(f"About to transcribe file: {audio_path}")
             transcript = await ai_service.transcribe_audio(audio_path)
+            logger.info(f"Transcription completed. Length: {len(transcript) if transcript else 0} chars")
             
             # Analyze content
             await processing_msg.edit_text("🧠 Analyzing content...")

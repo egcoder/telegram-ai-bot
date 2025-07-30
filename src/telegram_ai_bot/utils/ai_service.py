@@ -37,35 +37,38 @@ class AIService:
     def _transcribe_sync(self, audio_file, language: Optional[str]) -> str:
         """Synchronous transcription method"""
         try:
-            # Only include parameters that are definitely supported
-            kwargs = {
-                "model": "whisper-1",
-                "file": audio_file
-            }
+            # Create fresh client for transcription to avoid any parameter pollution
+            from openai import OpenAI
+            transcription_client = OpenAI(api_key=self.client.api_key)
             
-            # Add optional parameters only if specified
-            if language:
-                kwargs["language"] = language
-                
-            logger.info(f"Calling Whisper API with params: {list(kwargs.keys())}")
+            logger.info(f"Starting transcription with file type: {type(audio_file)}")
             
-            # Don't specify response_format - let it default
-            response = self.client.audio.transcriptions.create(**kwargs)
+            # Use the most basic parameters possible
+            response = transcription_client.audio.transcriptions.create(
+                model="whisper-1",
+                file=audio_file
+            )
             
             logger.info(f"Whisper response type: {type(response)}")
+            logger.info(f"Whisper response: {response}")
             
-            # The response should be text by default, but handle different response types
+            # Handle different response types
             if hasattr(response, 'text'):
                 logger.info("Using response.text attribute")
                 return response.text
+            elif isinstance(response, str):
+                logger.info("Response is already a string")
+                return response
             else:
-                # If it's already a string, return it
+                # Convert to string as fallback
                 logger.info("Converting response to string")
                 return str(response)
                 
         except Exception as e:
             logger.error(f"Whisper API error: {e}")
-            logger.error(f"Request params were: {kwargs}")
+            logger.error(f"Error type: {type(e)}")
+            import traceback
+            logger.error(f"Full traceback: {traceback.format_exc()}")
             raise
         
     async def get_chat_response(self, message: str, user_name: str) -> str:
