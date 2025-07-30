@@ -25,15 +25,21 @@ class RailwayBot(TelegramAIBot):
         if not self.application:
             return web.Response(status=503, text="Bot not initialized")
         
-        # Get the update data
-        data = await request.read()
-        
-        # Process the update through the bot
-        await self.application.update_queue.put(
-            await self.application.bot.de_json(data, self.application.bot)
-        )
-        
-        return web.Response(text="OK")
+        try:
+            # Get the update data as JSON
+            data = await request.json()
+            
+            # Process the update through the bot
+            from telegram import Update
+            update = Update.de_json(data, self.application.bot)
+            
+            # Add to the update queue for processing
+            await self.application.update_queue.put(update)
+            
+            return web.Response(text="OK")
+        except Exception as e:
+            logger.error(f"Error processing webhook: {e}")
+            return web.Response(status=500, text=str(e))
     
     async def run_webhook_with_health(self, webhook_url: str, port: int = 8000, host: str = '0.0.0.0'):
         """Run webhook with integrated health check endpoint"""
