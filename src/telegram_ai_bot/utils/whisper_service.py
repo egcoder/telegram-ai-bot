@@ -17,9 +17,12 @@ class WhisperService:
         """Transcribe audio using Whisper API with clean parameters"""
         logger.info(f"WhisperService.transcribe called with path: {audio_file_path}")
         
-        # Create a fresh client for each transcription
-        client = openai.OpenAI(api_key=self.api_key)
-        logger.info(f"Created fresh OpenAI client")
+        # Create a fresh client for each transcription with timeout
+        client = openai.OpenAI(
+            api_key=self.api_key,
+            timeout=30.0  # 30 second timeout instead of default
+        )
+        logger.info(f"Created fresh OpenAI client with 30s timeout")
         
         try:
             # Verify file exists and has content
@@ -62,7 +65,6 @@ class WhisperService:
                     return str(response)
                     
         except Exception as e:
-            import openai
             logger.error(f"Whisper transcription error: {e}")
             logger.error(f"OpenAI library version: {openai.__version__}")
             logger.error(f"Python version: {sys.version}")

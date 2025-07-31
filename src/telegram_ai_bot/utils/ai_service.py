@@ -19,22 +19,31 @@ class AIService:
         
     async def transcribe_audio(self, audio_file_path: Path, language: Optional[str] = None) -> str:
         """Transcribe audio file using OpenAI Whisper"""
+        start_time = asyncio.get_event_loop().time()
+        logger.info(f"Starting transcription of {audio_file_path}")
+        
         try:
             # Use isolated Whisper service with updated OpenAI library
             from .whisper_service import WhisperService
             whisper = WhisperService(self.client.api_key)
+            logger.info("WhisperService created")
             
             # Run in executor to avoid blocking
             loop = asyncio.get_event_loop()
+            logger.info("Starting async transcription...")
             transcript = await loop.run_in_executor(
                 None,
                 whisper.transcribe,
                 audio_file_path,
                 language
             )
+            
+            elapsed = loop.time() - start_time
+            logger.info(f"Transcription completed in {elapsed:.2f} seconds")
             return transcript
         except Exception as e:
-            logger.error(f"Transcription error: {e}")
+            elapsed = asyncio.get_event_loop().time() - start_time
+            logger.error(f"Transcription error after {elapsed:.2f} seconds: {e}")
             raise
             
     def _transcribe_sync(self, audio_file, language: Optional[str]) -> str:
