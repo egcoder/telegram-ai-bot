@@ -115,11 +115,18 @@ def get_voice_handler(user_manager, config):
             except Exception as cleanup_error:
                 logger.warning(f"Failed to cleanup temp file after error: {cleanup_error}")
             
-            await processing_msg.edit_text(
-                f"❌ Sorry, I couldn't process your voice message. "
-                f"Error: {str(e)[:100]}... "
+            import openai
+            from ..version import DEPLOY_VERSION
+            error_message = (
+                f"❌ Sorry, I couldn't process your voice message.\n"
+                f"Error: {str(e)[:100]}...\n\n"
+                f"Debug info:\n"
+                f"- Bot version: v{DEPLOY_VERSION}\n"
+                f"- OpenAI lib: v{openai.__version__}\n"
+                f"- Deploy time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}\n\n"
                 f"Please try again or contact support if the issue persists."
             )
+            await processing_msg.edit_text(error_message)
             
     return MessageHandler(filters.VOICE, handle_voice)
 

@@ -1,5 +1,6 @@
 """Isolated Whisper transcription service to avoid any parameter pollution"""
 import logging
+import sys
 from pathlib import Path
 from typing import Optional
 import openai
@@ -61,10 +62,15 @@ class WhisperService:
                     return str(response)
                     
         except Exception as e:
+            import openai
             logger.error(f"Whisper transcription error: {e}")
+            logger.error(f"OpenAI library version: {openai.__version__}")
+            logger.error(f"Python version: {sys.version}")
+            
             # Log detailed error info
             error_str = str(e)
             if "response_format" in error_str:
                 logger.error("ERROR: Invalid response_format parameter detected!")
                 logger.error("This suggests the OpenAI client is polluted with chat parameters.")
+                logger.error(f"Current OpenAI version: {openai.__version__}")
             raise
