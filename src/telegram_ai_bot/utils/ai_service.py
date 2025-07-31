@@ -20,16 +20,19 @@ class AIService:
     async def transcribe_audio(self, audio_file_path: Path, language: Optional[str] = None) -> str:
         """Transcribe audio file using OpenAI Whisper"""
         try:
-            with open(audio_file_path, 'rb') as audio_file:
-                # Run in executor to avoid blocking
-                loop = asyncio.get_event_loop()
-                transcript = await loop.run_in_executor(
-                    None,
-                    self._transcribe_sync,
-                    audio_file,
-                    language
-                )
-                return transcript
+            # Use isolated Whisper service with updated OpenAI library
+            from .whisper_service import WhisperService
+            whisper = WhisperService(self.client.api_key)
+            
+            # Run in executor to avoid blocking
+            loop = asyncio.get_event_loop()
+            transcript = await loop.run_in_executor(
+                None,
+                whisper.transcribe,
+                audio_file_path,
+                language
+            )
+            return transcript
         except Exception as e:
             logger.error(f"Transcription error: {e}")
             raise
@@ -44,9 +47,11 @@ class AIService:
             logger.info(f"Starting transcription with file type: {type(audio_file)}")
             
             # Use the most basic parameters possible
+            # Explicitly set response_format to avoid any parameter pollution
             response = transcription_client.audio.transcriptions.create(
                 model="whisper-1",
-                file=audio_file
+                file=audio_file,
+                response_format="text"  # Ensure we use Whisper's format, not chat's
             )
             
             logger.info(f"Whisper response type: {type(response)}")
@@ -69,7 +74,43 @@ class AIService:
             logger.error(f"Error type: {type(e)}")
             import traceback
             logger.error(f"Full traceback: {traceback.format_exc()}")
-            raise
+            
+            # If it's a parameter error, log the exact issue
+            error_str = str(e)
+            if "response_format" in error_str and "json_object" in error_str:
+                logger.error("CRITICAL: The Whisper API is receiving chat completion parameters!")
+                logger.error("This suggests OpenAI client configuration pollution.")
+                logger.error("Creating new isolated client...")
+                
+                # Try one more time with a completely fresh client and explicit params
+                try:
+                    import openai as fresh_openai
+                    fresh_client = fresh_openai.OpenAI(api_key=self.client.api_key)
+                    
+                    # Reset file position if needed
+                    if hasattr(audio_file, 'seek'):
+                        audio_file.seek(0)
+                    
+                    # Use only the exact parameters Whisper accepts
+                    # Note: response_format for Whisper should be a string, not an object
+                    response = fresh_client.audio.transcriptions.create(
+                        model="whisper-1",
+                        file=audio_file,
+                        response_format="text"  # Valid values: "json", "text", "srt", "verbose_json", "vtt"
+                    )
+                    
+                    logger.info("Successfully transcribed with fresh client")
+                    return response if isinstance(response, str) else response.text
+                except Exception as retry_error:
+                    logger.error(f"Retry also failed: {retry_error}")
+                    raise retry_error
+            else:
+                raise
+                
+    def _transcribe_sync_with_path(self, audio_file_path: str, language: Optional[str]) -> str:
+        """Synchronous transcription method that opens the file"""
+        with open(audio_file_path, 'rb') as audio_file:
+            return self._transcribe_sync(audio_file, language)
         
     async def get_chat_response(self, message: str, user_name: str) -> str:
         """Get a chat response from the AI"""
