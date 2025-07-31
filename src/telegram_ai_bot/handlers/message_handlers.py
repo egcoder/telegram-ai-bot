@@ -4,12 +4,14 @@ import tempfile
 import os
 from pathlib import Path
 from datetime import datetime
+import openai
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import MessageHandler, filters, ContextTypes
 
 from ..utils.ai_service import AIService
 from ..utils.calendar_utils import format_action_items_for_calendar
+from ..version import DEPLOY_VERSION
 
 logger = logging.getLogger(__name__)
 
@@ -115,8 +117,6 @@ def get_voice_handler(user_manager, config):
             except Exception as cleanup_error:
                 logger.warning(f"Failed to cleanup temp file after error: {cleanup_error}")
             
-            import openai
-            from ..version import DEPLOY_VERSION
             error_message = (
                 f"❌ Sorry, I couldn't process your voice message.\n"
                 f"Error: {str(e)[:100]}...\n\n"
