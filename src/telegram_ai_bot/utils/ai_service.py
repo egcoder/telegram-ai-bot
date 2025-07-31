@@ -23,28 +23,50 @@ class AIService:
         logger.info(f"Starting transcription of {audio_file_path}")
         
         try:
-            # Use isolated Whisper service with updated OpenAI library
-            from .whisper_service import WhisperService
-            whisper = WhisperService(self.client.api_key)
-            logger.info("WhisperService created")
+            # Try isolated subprocess approach first
+            from .isolated_whisper import IsolatedWhisperService, transcribe_with_curl
+            isolated = IsolatedWhisperService(self.client.api_key)
+            logger.info("Using IsolatedWhisperService to avoid parameter pollution")
             
             # Run in executor to avoid blocking
             loop = asyncio.get_event_loop()
-            logger.info("Starting async transcription...")
-            transcript = await loop.run_in_executor(
-                None,
-                whisper.transcribe,
-                audio_file_path,
-                language
-            )
+            logger.info("Starting isolated transcription...")
+            
+            try:
+                transcript = await loop.run_in_executor(
+                    None,
+                    isolated.transcribe,
+                    audio_file_path,
+                    language
+                )
+            except Exception as e:
+                logger.error(f"Subprocess approach failed: {e}, trying curl...")
+                transcript = await loop.run_in_executor(
+                    None,
+                    transcribe_with_curl,
+                    self.client.api_key,
+                    audio_file_path
+                )
             
             elapsed = loop.time() - start_time
             logger.info(f"Transcription completed in {elapsed:.2f} seconds")
             return transcript
         except Exception as e:
             elapsed = asyncio.get_event_loop().time() - start_time
-            logger.error(f"Transcription error after {elapsed:.2f} seconds: {e}")
-            raise
+            logger.error(f"All transcription methods failed after {elapsed:.2f} seconds: {e}")
+            
+            # Last resort: try the original WhisperService
+            logger.error("Falling back to WhisperService...")
+            from .whisper_service import WhisperService
+            whisper = WhisperService(self.client.api_key)
+            loop = asyncio.get_event_loop()
+            transcript = await loop.run_in_executor(
+                None,
+                whisper.transcribe,
+                audio_file_path,
+                language
+            )
+            return transcript
             
     def _transcribe_sync(self, audio_file, language: Optional[str]) -> str:
         """Synchronous transcription method"""
