@@ -4,7 +4,6 @@ import tempfile
 import os
 from pathlib import Path
 from datetime import datetime
-import openai
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import MessageHandler, filters, ContextTypes
@@ -117,12 +116,28 @@ def get_voice_handler(user_manager, config):
             except Exception as cleanup_error:
                 logger.warning(f"Failed to cleanup temp file after error: {cleanup_error}")
             
+            # Safely get OpenAI version
+            openai_version = "checking..."
+            try:
+                import openai as openai_module
+                openai_version = openai_module.__version__
+            except Exception as import_err:
+                openai_version = f"import error: {import_err}"
+            
+            # Check if it's the specific response_format error
+            error_str = str(e)
+            if "response_format" in error_str and "json_object" in error_str:
+                error_msg = "Whisper API received invalid response_format parameter"
+            else:
+                error_msg = str(e)[:300]
+            
             error_message = (
                 f"❌ Sorry, I couldn't process your voice message.\n"
-                f"Error: {str(e)[:100]}...\n\n"
+                f"Error: {error_msg}\n\n"
                 f"Debug info:\n"
                 f"- Bot version: v{DEPLOY_VERSION}\n"
-                f"- OpenAI lib: v{openai.__version__}\n"
+                f"- OpenAI lib: v{openai_version}\n"
+                f"- Error type: {type(e).__name__}\n"
                 f"- Deploy time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}\n\n"
                 f"Please try again or contact support if the issue persists."
             )
