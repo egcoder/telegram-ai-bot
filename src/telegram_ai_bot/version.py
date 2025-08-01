@@ -1,9 +1,10 @@
 """Version information for the Telegram AI Bot"""
 
 # Deployment version - increment this when making fixes
-DEPLOY_VERSION = "1.1.4"
+DEPLOY_VERSION = "1.1.5"
 DEPLOY_DATE = "2024-01-31"
 FIXES = [
+    "1.1.5 - Use curl-only approach to completely bypass Python OpenAI library",
     "1.1.4 - Use subprocess isolation to completely avoid parameter pollution",
     "1.1.3 - Fixed UnboundLocalError and added 30s timeout to prevent hanging",
     "1.1.2 - Improved error handling and OpenAI version detection",

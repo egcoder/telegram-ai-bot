@@ -23,50 +23,44 @@ class AIService:
         logger.info(f"Starting transcription of {audio_file_path}")
         
         try:
-            # Try isolated subprocess approach first
-            from .isolated_whisper import IsolatedWhisperService, transcribe_with_curl
-            isolated = IsolatedWhisperService(self.client.api_key)
-            logger.info("Using IsolatedWhisperService to avoid parameter pollution")
+            # Use curl-only approach first to completely bypass Python OpenAI library
+            from .simple_whisper import transcribe_with_curl_only
+            logger.info("Using curl-only transcription to bypass all Python libraries")
             
             # Run in executor to avoid blocking
             loop = asyncio.get_event_loop()
-            logger.info("Starting isolated transcription...")
+            transcript = await loop.run_in_executor(
+                None,
+                transcribe_with_curl_only,
+                self.client.api_key,
+                audio_file_path
+            )
             
+            elapsed = loop.time() - start_time
+            logger.info(f"Curl transcription completed in {elapsed:.2f} seconds")
+            return transcript
+            
+        except Exception as curl_error:
+            elapsed = asyncio.get_event_loop().time() - start_time
+            logger.error(f"Curl transcription failed after {elapsed:.2f} seconds: {curl_error}")
+            
+            # Fallback to isolated subprocess
             try:
+                from .isolated_whisper import IsolatedWhisperService
+                isolated = IsolatedWhisperService(self.client.api_key)
+                logger.info("Falling back to IsolatedWhisperService")
+                
+                loop = asyncio.get_event_loop()
                 transcript = await loop.run_in_executor(
                     None,
                     isolated.transcribe,
                     audio_file_path,
                     language
                 )
+                return transcript
             except Exception as e:
-                logger.error(f"Subprocess approach failed: {e}, trying curl...")
-                transcript = await loop.run_in_executor(
-                    None,
-                    transcribe_with_curl,
-                    self.client.api_key,
-                    audio_file_path
-                )
-            
-            elapsed = loop.time() - start_time
-            logger.info(f"Transcription completed in {elapsed:.2f} seconds")
-            return transcript
-        except Exception as e:
-            elapsed = asyncio.get_event_loop().time() - start_time
-            logger.error(f"All transcription methods failed after {elapsed:.2f} seconds: {e}")
-            
-            # Last resort: try the original WhisperService
-            logger.error("Falling back to WhisperService...")
-            from .whisper_service import WhisperService
-            whisper = WhisperService(self.client.api_key)
-            loop = asyncio.get_event_loop()
-            transcript = await loop.run_in_executor(
-                None,
-                whisper.transcribe,
-                audio_file_path,
-                language
-            )
-            return transcript
+                logger.error(f"All methods failed: {e}")
+                raise curl_error  # Raise the original curl error as it's most informative
             
     def _transcribe_sync(self, audio_file, language: Optional[str]) -> str:
         """Synchronous transcription method"""
